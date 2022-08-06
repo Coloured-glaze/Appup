@@ -14,7 +14,7 @@ import (
 	"runtime"
 	"syscall"
 
-	"./file"
+	"github.com/Coloured-glaze/Appup/file"
 )
 
 var Version = "1.0.0-beta"
