@@ -17,13 +17,14 @@ import (
 	"github.com/Coloured-glaze/Appup/file"
 )
 
-var Version = "1.0.0-beta1"
+var Version = "v1.0.0-beta1"
 
 type data struct {
 	Name string `json:"name"`
 }
 
 func main() {
+	log.Println("当前版本: ", Version)
 	version, up, err := getver(Version) // version
 	if err != nil {
 		log.Println("Getver Error: ", err)
@@ -43,8 +44,7 @@ func main() {
 		OS := runtime.GOOS
 		arch := runtime.GOARCH
 
-		log.Printf("版本为 %v for %v %v\n正在更新到: %v for %v %v ...\n",
-			version, OS, arch, Version, OS, arch)
+		log.Printf("当前版本为 %v 正在更新到: %v for %v %v ...\n", Version, version, OS, arch)
 
 		if OS == "windows" {
 			upath += "\\data\\Update\\"
@@ -60,6 +60,10 @@ func main() {
 			if err != nil {
 				log.Println("unzip Error: ", err)
 				return
+			}
+			err = os.Rename(upath+"App.exe", upath+base)
+			if err != nil {
+				log.Println("Rename Error: ", err)
 			}
 			err = forkwin(upath, epath, base)
 			if err != nil {
@@ -127,7 +131,7 @@ func getver(version string) (string, bool, error) {
 func download(path, path2, dpath, version string) error {
 	var err error
 	if !file.IsExist(dpath) { // 如果文件夹不存在就创建
-		err = os.Mkdir(dpath, 0777)
+		err = os.MkdirAll(dpath, 0755)
 		if err != nil {
 			return err
 		}
@@ -148,7 +152,7 @@ func download(path, path2, dpath, version string) error {
 }
 
 // 解压tar.gz
-func Decompress(defile, uppath, path string) error {
+func Decompress(defile, uppath, epath string) error {
 	f, err := os.Open(defile)
 	if err != nil {
 		return err
@@ -180,7 +184,7 @@ func Decompress(defile, uppath, path string) error {
 			return err
 		}
 	}
-	err = os.Rename(uppath+"App", path) // 重命名并覆盖
+	err = os.Rename(uppath+"App", epath) // 重命名并覆盖
 	if err != nil {
 		return err
 	}
@@ -215,10 +219,6 @@ func unzip(zipFile, destDir, base string) error {
 			io.Copy(outFile, inFile)
 		}
 	}
-	err = os.Rename(destDir+"App", destDir+base)
-	if err != nil {
-		return err
-	}
 	return err
 }
 
@@ -248,7 +248,7 @@ func forkwin(exename, path, base string) error {
 		return err
 	}
 	args := []string{cmdpath, "/c",
-		"TIMEOUT /T 3 & copy /Y " + exename + base + " " + path + " & " + base,
+		"TIMEOUT /T 3 & move /Y " + exename + base + " " + path + " & " + base,
 	}
 	for _, v := range os.Args[1:] { // 加入命令行参数
 		args[2] += " " + v
