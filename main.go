@@ -17,7 +17,7 @@ import (
 	"github.com/Coloured-glaze/Appup/file"
 )
 
-var Version = "v1.0.0-beta1"
+var Version = "v1.0.0-beta0"
 
 type data struct {
 	Name string `json:"name"`
@@ -56,7 +56,7 @@ func main() {
 				log.Println("Download Error: ", err)
 				return
 			}
-			err = unzip(path2, upath, base)
+			err = unzip(path2, upath)
 			if err != nil {
 				log.Println("unzip Error: ", err)
 				return
@@ -82,9 +82,14 @@ func main() {
 				log.Println("Download Error: ", err)
 				return
 			}
-			err = Decompress(path2, uppath, epath)
+			err = Decompress(path2, uppath)
 			if err != nil {
 				log.Println("Decompress Error: ", err)
+				return
+			}
+			err = os.Rename(uppath+"App", epath) // 重命名并覆盖
+			if err != nil {
+				log.Println("Rename Error: ", err)
 				return
 			}
 			err = fork(base)
@@ -152,47 +157,46 @@ func download(path, path2, dpath, version string) error {
 }
 
 // 解压tar.gz
-func Decompress(defile, uppath, epath string) error {
-	f, err := os.Open(defile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	g, err := gzip.NewReader(f)
-	if err != nil {
-		return err
-	}
-	defer g.Close()
-	t := tar.NewReader(g)
-
-	for {
-		next, err := t.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return err
-		}
-		of, err := os.OpenFile(next.Name, os.O_CREATE|os.O_WRONLY, 0755)
-		if err != nil {
-			return err
-		}
-		defer of.Close()
-
-		_, err = io.Copy(of, t)
-		if err != nil {
-			return err
-		}
-	}
-	err = os.Rename(uppath+"App", epath) // 重命名并覆盖
-	if err != nil {
-		return err
-	}
-	return nil
+func Decompress(tarFile, dest string) error {
+    srcFile, err := os.Open(tarFile)
+    if err != nil {
+        return err
+    }
+    defer srcFile.Close()
+    gr, err := gzip.NewReader(srcFile)
+    if err != nil {
+        return err
+    }
+    defer gr.Close()
+    tr := tar.NewReader(gr)
+    for {
+        hdr, err := tr.Next()
+            if err == io.EOF {
+                break
+            }
+            if err != nil {
+                return err
+        }
+        cf, err := createFile(dest + hdr.Name)
+        if err != nil {
+            return err
+        }
+        defer cf.Close()
+        io.Copy(cf, tr)
+    }
+    return nil
+}
+ 
+func createFile(name string) (*os.File, error) {
+    err := os.MkdirAll(filepath.Dir(name), 0755)
+    if err != nil {
+        return nil, err
+    }
+    return os.OpenFile(name, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0755) //创建的新文件
 }
 
 // 解压缩zip
-func unzip(zipFile, destDir, base string) error {
+func unzip(zipFile, destDir string) error {
 	zipReader, err := zip.OpenReader(zipFile)
 	if err != nil {
 		return err
