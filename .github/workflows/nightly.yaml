@@ -3,7 +3,7 @@ name: 最新版
 on: [push, pull_request]
 
 env:
-  BINARY_PREFIX: "App_"
+  BINARY_PREFIX: "app_"
   BINARY_SUFFIX: ""
   PR_PROMPT: "::warning:: Build artifact will not be uploaded due to the workflow is trigged by pull request."
   LD_FLAGS: "-w -s"
@@ -23,7 +23,6 @@ jobs:
           - goos: windows
             goarch: arm64
       fail-fast: true
-
     steps:
       - uses: actions/checkout@master
       - name: Setup Go environment
@@ -37,20 +36,17 @@ jobs:
             ~/.cache/go-build
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ matrix.goos }}-${{ matrix.goarch }}-${{ hashFiles('**/go.sum') }}
-
       - name: Build binary file
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           IS_PR: ${{ !!github.head_ref }}
-          
         run: |
           if [ $GOOS = "windows" ]; then export BINARY_SUFFIX="$BINARY_SUFFIX.exe"; fi
           if $IS_PR ; then echo $PR_PROMPT; fi
           export BINARY_NAME="$BINARY_PREFIX$GOOS_$GOARCH$BINARY_SUFFIX"
           export CGO_ENABLED=0
           go build -o "output/$BINARY_NAME" -trimpath -ldflags "$LD_FLAGS" .
-          
       - name: Upload artifact
         uses: actions/upload-artifact@master
         if: ${{ !github.head_ref }}
