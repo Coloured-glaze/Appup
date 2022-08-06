@@ -17,7 +17,7 @@ import (
 	"github.com/Coloured-glaze/Appup/file"
 )
 
-var Version = "1.0.0-beta"
+var Version = "1.0.0-beta1"
 
 type data struct {
 	Name string `json:"name"`
