@@ -29,15 +29,24 @@ func main() {
 		log.Println("Getver Error: ", err)
 		return
 	}
-	upath, _ := os.Getwd()
+	upath, err := os.Getwd()
+	if err != nil {
+		log.Println("Gewd Error: ", err)
+		return
+	}
 	if up {
+		epath, err := os.Executable() // 可执行文件的绝对路径
+		if err != nil {
+			log.Println("Getpath Error: ", err)
+		}
+		base := filepath.Base(epath) // 去除路径，保留文件名
 		OS := runtime.GOOS
 		arch := runtime.GOARCH
+
 		log.Printf("版本为 %v for %v %v\n正在更新到: %v for %v %v ...\n",
 			version, OS, arch, Version, OS, arch)
 
 		if OS == "windows" {
-
 			upath += "\\data\\Update\\"
 			path := "App_" + OS + "_" + arch + ".zip"
 			path2 := upath + path
@@ -47,12 +56,12 @@ func main() {
 				log.Println("Download Error: ", err)
 				return
 			}
-			err = unzip(path2, upath)
+			err = unzip(path2, upath, base)
 			if err != nil {
 				log.Println("unzip Error: ", err)
 				return
 			}
-			err = forkwin(upath)
+			err = forkwin(upath, epath, base)
 			if err != nil {
 				log.Println("fork Error: ", err)
 				return
@@ -69,13 +78,12 @@ func main() {
 				log.Println("Download Error: ", err)
 				return
 			}
-
-			err = Decompress(path2, uppath)
+			err = Decompress(path2, uppath, epath)
 			if err != nil {
 				log.Println("Decompress Error: ", err)
 				return
 			}
-			err = fork()
+			err = fork(base)
 			if err != nil {
 				log.Println("fork Error: ", err)
 				return
@@ -140,7 +148,7 @@ func download(path, path2, dpath, version string) error {
 }
 
 // 解压tar.gz
-func Decompress(defile, uppath string) error {
+func Decompress(defile, uppath, path string) error {
 	f, err := os.Open(defile)
 	if err != nil {
 		return err
@@ -172,11 +180,7 @@ func Decompress(defile, uppath string) error {
 			return err
 		}
 	}
-	n, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	err = os.Rename(uppath+"zbp", n) // 重命名并覆盖
+	err = os.Rename(uppath+"App", path) // 重命名并覆盖
 	if err != nil {
 		return err
 	}
@@ -184,7 +188,7 @@ func Decompress(defile, uppath string) error {
 }
 
 // 解压缩zip
-func unzip(zipFile string, destDir string) error {
+func unzip(zipFile, destDir, base string) error {
 	zipReader, err := zip.OpenReader(zipFile)
 	if err != nil {
 		return err
@@ -211,17 +215,16 @@ func unzip(zipFile string, destDir string) error {
 			io.Copy(outFile, inFile)
 		}
 	}
-	return err
-}
-
-func fork() error {
-	path, err := os.Executable() // 可执行文件的绝对路径
+	err = os.Rename(destDir+"App", destDir+base)
 	if err != nil {
 		return err
 	}
+	return err
+}
+
+func fork(path string) error {
 	args := []string{path}
 	args = append(args, os.Args[1:]...) // 加入命令行参数
-
 	cmd := &exec.Cmd{
 		Path:        path,               // 文件的绝对路径
 		Args:        args,               // 执行的命令
@@ -232,31 +235,24 @@ func fork() error {
 		Stderr:      os.Stderr,
 		SysProcAttr: &syscall.SysProcAttr{},
 	}
-	err = cmd.Start() // 不阻塞
+	err := cmd.Start() // 不阻塞
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func forkwin(exename string) error {
-	path, err := os.Executable() // 可执行文件的绝对路径
-	if err != nil {
-		return err
-	}
-	base := filepath.Base(path)              // 去除路径，保留文件名
+func forkwin(exename, path, base string) error {
 	cmdpath, err := exec.LookPath("cmd.exe") // 返回文件的绝对路径
 	if err != nil {
 		return err
 	}
-
 	args := []string{cmdpath, "/c",
 		"TIMEOUT /T 3 & copy /Y " + exename + base + " " + path + " & " + base,
 	}
 	for _, v := range os.Args[1:] { // 加入命令行参数
 		args[2] += " " + v
 	}
-
 	cmd := &exec.Cmd{
 		Path:        args[0],            // 文件的绝对路径
 		Args:        args,               // 执行的命令
